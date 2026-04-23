@@ -7,6 +7,7 @@ from .memory import MemoryStore
 from .permissions import PermissionDecision, classify_command
 from .router import build_system_prompt, route_prompt
 from .tools import CommandRunner, CommandResult
+from .file_ops import FileOperations
 
 
 @dataclass
@@ -14,6 +15,7 @@ class AssistantRuntime:
     memory: MemoryStore
     llm: OllamaClient
     runner: CommandRunner
+    file_ops: FileOperations
 
     def handle_prompt(self, prompt: str) -> tuple[str, PermissionDecision | None, CommandResult | None]:
         routed = route_prompt(prompt, self.memory)
@@ -21,13 +23,40 @@ class AssistantRuntime:
             return routed.content, None, None
 
         if routed.mode == "exec":
-            decision = classify_command(routed.content)
-            if decision.requires_confirmation:
-                return f"Confirmacao necessaria: {decision.reason}", decision, None
-            result = self.runner.run(routed.content)
-            return result.render(), decision, result
+            return self._handle_exec(routed.content)
 
         from .router import detect_model_context
         context = detect_model_context(routed.content)
         response = self.llm.generate(routed.content, build_system_prompt(self.memory), context)
         return response.text, None, None
+
+    def _handle_exec(self, content: str) -> tuple[str, PermissionDecision | None, CommandResult | None]:
+        """Processa comandos /exec, /createfile, /editfile, /readfile."""
+        lower = content.lower()
+        
+        if lower.startswith("/createfile "):
+            parts = content[12:].split("|", 1)
+            if len(parts) != 2:
+                return "Formato: /createfile <caminho> | <conteudo>", None, None
+            filepath, filecontent = parts
+            result = self.file_ops.create_file(filepath.strip(), filecontent.strip())
+            return result.render(), None, None
+        
+        if lower.startswith("/editfile "):
+            parts = content[10:].split("|", 1)
+            if len(parts) != 2:
+                return "Formato: /editfile <caminho> | <conteudo>", None, None
+            filepath, filecontent = parts
+            result = self.file_ops.edit_file(filepath.strip(), filecontent.strip())
+            return result.render(), None, None
+        
+        if lower.startswith("/readfile "):
+            filepath = content[10:].strip()
+            result = self.file_ops.read_file(filepath)
+            return result.render(), None, None
+        
+        decision = classify_command(content)
+        if decision.requires_confirmation:
+            return f"Confirmacao necessaria: {decision.reason}", decision, None
+        result = self.runner.run(content)
+        return result.render(), decision, result

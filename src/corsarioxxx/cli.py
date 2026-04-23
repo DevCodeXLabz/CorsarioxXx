@@ -62,9 +62,14 @@ def main() -> int:
     config, memory = load_config()
     authenticate(config)
 
-    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner())
+    from .file_ops import FileOperations
+    from pathlib import Path
+    
+    file_ops = FileOperations(Path.cwd())
+    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops)
 
     print(f"{config.assistant_name} online. Digite /sair para encerrar.")
+    print("Comandos disponiveis: /exec, /createfile, /editfile, /readfile, /sair")
     while True:
         prompt = input(f"{config.owner_name}> ").strip()
         if not prompt:

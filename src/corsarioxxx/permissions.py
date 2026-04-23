@@ -33,8 +33,14 @@ SENSITIVE_MARKERS = (
     "wget ",
     "pip install",
     "npm install",
-    "git commit",
     "git push",
+)
+
+# Novos comandos seguros para file operations
+FILE_OPERATION_SAFE = (
+    "/createfile ",
+    "/editfile ",
+    "/readfile ",
 )
 
 
@@ -51,6 +57,10 @@ def classify_command(command: str) -> PermissionDecision:
 
     if not normalized:
         return PermissionDecision("invalid", True, "Comando vazio.")
+
+    for prefix in FILE_OPERATION_SAFE:
+        if lower.startswith(prefix.lower()):
+            return PermissionDecision("safe", False, "Operacao de arquivo dentro do projeto.")
 
     for marker in SENSITIVE_MARKERS:
         if marker.lower() in lower:

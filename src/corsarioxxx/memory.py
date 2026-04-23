@@ -42,14 +42,16 @@ class MemoryStore:
     def add_session_entry(self, prompt: str, response: str, context: str = "chat") -> None:
         """Salva uma entrada de sessão para aprendizado iterativo."""
         payload = self.load()
+        # Truncate long responses to avoid memory bloat
+        response_summary = response[:300] if len(response) > 300 else response
         payload.setdefault("session_history", []).append({
             "prompt": prompt,
-            "response": response[:500],  # Truncate long responses
+            "response": response_summary,
             "context": context,
         })
-        # Manter últimas 50 entradas apenas
-        if len(payload["session_history"]) > 50:
-            payload["session_history"] = payload["session_history"][-50:]
+        # Manter últimas 100 entradas para melhor retenção de contexto
+        if len(payload["session_history"]) > 100:
+            payload["session_history"] = payload["session_history"][-100:]
         self.save(payload)
 
     def set_context(self, key: str, value: str) -> None:
@@ -62,3 +64,18 @@ class MemoryStore:
         """Recupera contexto de awareness."""
         payload = self.load()
         return payload.get("context_awareness", {}).get(key)
+
+    def get_session_summary(self, last_n: int = 5) -> str:
+        """Retorna um resumo das ultimas N sesoes para injetar no prompt."""
+        payload = self.load()
+        history = payload.get("session_history", [])
+        if not history:
+            return ""
+        
+        recent = history[-last_n:]
+        lines = ["Historico recente:"]
+        for entry in recent:
+            prompt = entry.get("prompt", "?")[:50]
+            context = entry.get("context", "?")
+            lines.append(f"  - [{context}] {prompt}...")
+        return "\n".join(lines)

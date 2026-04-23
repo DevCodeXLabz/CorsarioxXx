@@ -67,7 +67,7 @@ def main() -> int:
     from pathlib import Path
     
     file_ops = FileOperations(Path.cwd())
-    git_ops = GitOperations()
+    git_ops = GitOperations(repo_dir=Path.cwd())
     runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops, git_ops=git_ops)
 
     print(f"{config.assistant_name} online. Digite /sair para encerrar.")

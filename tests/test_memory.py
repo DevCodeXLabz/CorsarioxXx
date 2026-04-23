@@ -33,12 +33,12 @@ class TestMemoryStore:
         assert len(payload["session_history"]) == 1
         assert payload["session_history"][0]["prompt"] == "test prompt"
 
-    def test_session_history_truncates_at_50(self, memory_store):
-        # Add 60 entries
-        for i in range(60):
+    def test_session_history_truncates_at_100(self, memory_store):
+        # Add 120 entries
+        for i in range(120):
             memory_store.add_session_entry(f"prompt {i}", f"response {i}", "chat")
         payload = memory_store.load()
-        assert len(payload["session_history"]) == 50
+        assert len(payload["session_history"]) == 100
 
     def test_set_and_get_context(self, memory_store):
         memory_store.set_context("last_project", "CorsarioXxX")
@@ -49,3 +49,15 @@ class TestMemoryStore:
         memory_store.append_note("Test note")
         payload = memory_store.load()
         assert "Test note" in payload["notes"]
+
+    def test_get_session_summary(self, memory_store):
+        for i in range(5):
+            memory_store.add_session_entry(f"prompt {i}", f"response {i}", "chat")
+        summary = memory_store.get_session_summary(last_n=3)
+        assert "Historico recente:" in summary
+        assert "prompt 4" in summary
+        assert "prompt 3" in summary
+
+    def test_get_session_summary_empty(self, memory_store):
+        summary = memory_store.get_session_summary()
+        assert summary == ""

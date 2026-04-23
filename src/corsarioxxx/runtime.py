@@ -29,10 +29,21 @@ class AssistantRuntime:
 
         from .router import detect_model_context
         context = detect_model_context(routed.content)
-        response = self.llm.generate(routed.content, build_system_prompt(self.memory), context)
         
-        # Save to session history
-        self.memory.add_session_entry(routed.content, response.text, context)
+        # Inject recent session context if available
+        system_prompt = build_system_prompt(self.memory)
+        session_summary = self.memory.get_session_summary(last_n=3)
+        if session_summary:
+            system_prompt += f"\n\n{session_summary}"
+        
+        response = self.llm.generate(routed.content, system_prompt, context)
+        
+        # Save to session history with error handling
+        try:
+            self.memory.add_session_entry(routed.content, response.text, context)
+        except Exception as e:
+            # Log error but don't crash
+            self.memory.add_session_entry(routed.content, f"[ERROR: {str(e)}]", "error")
         
         return response.text, None, None
 
@@ -64,6 +75,11 @@ class AssistantRuntime:
         if lower.startswith("/git "):
             git_cmd = content[5:].strip()
             result = self.git_ops.run(git_cmd)
+            # Log git operations for debugging
+            try:
+                self.memory.add_session_entry(f"/git {git_cmd}", result.render(), "git")
+            except Exception:
+                pass
             return result.render(), None, None
         
         decision = classify_command(content)

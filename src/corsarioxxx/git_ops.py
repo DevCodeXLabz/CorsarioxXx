@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,9 @@ class GitOpResult:
 
 class GitOperations:
     """Operacoes Git seguras para o assistente."""
+
+    def __init__(self, repo_dir: Path | None = None):
+        self.repo_dir = (repo_dir or Path.cwd()).resolve()
 
     # Comandos permitidos automaticamente
     SAFE_COMMANDS = {
@@ -40,8 +44,25 @@ class GitOperations:
         lower = command.lower()
         return any(pattern.lower() in lower for pattern in self.DANGEROUS_PATTERNS)
 
+    def _validate_repo(self) -> bool:
+        """Valida que estamos em um repositorio Git."""
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--git-dir"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                cwd=self.repo_dir,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+
     def run(self, git_command: str) -> GitOpResult:
-        """Executa um comando git seguro."""
+        """Executa um comando git seguro no repo_dir."""
+        if not self._validate_repo():
+            return GitOpResult(False, git_command, "", f"Nao eh um repositorio Git: {self.repo_dir}")
+
         if self._is_dangerous(git_command):
             return GitOpResult(False, git_command, "", "Operacao perigosa detectada. Requer confirmacao manual.")
 
@@ -51,6 +72,7 @@ class GitOperations:
                 capture_output=True,
                 text=True,
                 timeout=30,
+                cwd=self.repo_dir,
             )
             return GitOpResult(
                 ok=result.returncode == 0,

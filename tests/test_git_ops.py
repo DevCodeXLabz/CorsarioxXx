@@ -3,6 +3,11 @@ from corsarioxxx.git_ops import GitOperations, GitOpResult
 
 
 class TestGitOperations:
+    def test_init_with_repo_dir(self):
+        from pathlib import Path
+        ops = GitOperations(repo_dir=Path.cwd())
+        assert ops.repo_dir == Path.cwd().resolve()
+
     def test_is_dangerous_detects_reset(self):
         ops = GitOperations()
         assert ops._is_dangerous("reset --hard HEAD")

@@ -9,6 +9,8 @@ from .llm import OllamaClient
 from .memory import MemoryStore
 from .runtime import AssistantRuntime
 from .tools import CommandRunner
+from .file_ops import FileOperations
+from .git_ops import GitOperations
 
 
 @dataclass
@@ -62,14 +64,14 @@ def main() -> int:
     config, memory = load_config()
     authenticate(config)
 
-    from .file_ops import FileOperations
     from pathlib import Path
     
     file_ops = FileOperations(Path.cwd())
-    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops)
+    git_ops = GitOperations()
+    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops, git_ops=git_ops)
 
     print(f"{config.assistant_name} online. Digite /sair para encerrar.")
-    print("Comandos disponiveis: /exec, /createfile, /editfile, /readfile, /sair")
+    print("Comandos disponiveis: /exec, /createfile, /editfile, /readfile, /git, /sair")
     while True:
         prompt = input(f"{config.owner_name}> ").strip()
         if not prompt:

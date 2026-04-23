@@ -20,6 +20,13 @@ class MemoryStore:
                     "name": "CorsarioXxX",
                     "persona": "Amigavel, leal e direto.",
                 },
+                "session_history": [],
+                "context_awareness": {
+                    "last_project": None,
+                    "recent_files": [],
+                    "recent_errors": [],
+                    "coding_patterns": {},
+                },
                 "notes": [],
             },
         )
@@ -31,3 +38,27 @@ class MemoryStore:
         payload = self.load()
         payload.setdefault("notes", []).append(note)
         self.save(payload)
+
+    def add_session_entry(self, prompt: str, response: str, context: str = "chat") -> None:
+        """Salva uma entrada de sessão para aprendizado iterativo."""
+        payload = self.load()
+        payload.setdefault("session_history", []).append({
+            "prompt": prompt,
+            "response": response[:500],  # Truncate long responses
+            "context": context,
+        })
+        # Manter últimas 50 entradas apenas
+        if len(payload["session_history"]) > 50:
+            payload["session_history"] = payload["session_history"][-50:]
+        self.save(payload)
+
+    def set_context(self, key: str, value: str) -> None:
+        """Atualiza contexto de awareness."""
+        payload = self.load()
+        payload.setdefault("context_awareness", {})[key] = value
+        self.save(payload)
+
+    def get_context(self, key: str) -> str | None:
+        """Recupera contexto de awareness."""
+        payload = self.load()
+        return payload.get("context_awareness", {}).get(key)

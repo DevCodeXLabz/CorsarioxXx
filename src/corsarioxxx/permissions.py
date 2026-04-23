@@ -43,6 +43,18 @@ FILE_OPERATION_SAFE = (
     "/readfile ",
 )
 
+# Git operations
+GIT_OPERATION_SAFE = (
+    "/git status",
+    "/git log",
+    "/git diff",
+    "/git add",
+    "/git commit",
+    "/git push",
+    "/git pull",
+    "/git branch",
+)
+
 
 @dataclass(frozen=True)
 class PermissionDecision:
@@ -61,6 +73,10 @@ def classify_command(command: str) -> PermissionDecision:
     for prefix in FILE_OPERATION_SAFE:
         if lower.startswith(prefix.lower()):
             return PermissionDecision("safe", False, "Operacao de arquivo dentro do projeto.")
+
+    for prefix in GIT_OPERATION_SAFE:
+        if lower.startswith(prefix.lower()):
+            return PermissionDecision("safe", False, "Operacao Git segura.")
 
     for marker in SENSITIVE_MARKERS:
         if marker.lower() in lower:

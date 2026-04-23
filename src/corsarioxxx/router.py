@@ -46,6 +46,22 @@ def route_prompt(prompt: str, memory: MemoryStore) -> RoutedPrompt:
     return RoutedPrompt("chat", prompt)
 
 
+def detect_model_context(prompt: str) -> str:
+    """Detecta o contexto da tarefa para rotear para o modelo certo."""
+    lower = prompt.lower()
+    
+    if any(word in lower for word in ["python", "script", "funcao", "classe", "codigo", "bug", "erro de sintaxe"]):
+        return "code-python"
+    
+    if any(word in lower for word in ["android", "kotlin", "studio", "apk", "gradle", "xml", "activity"]):
+        return "code-android"
+    
+    if any(word in lower for word in ["explore", "analisa", "pensa", "raciocina", "strategy", "plano"]):
+        return "reasoning"
+    
+    return "chat"
+
+
 def build_system_prompt(memory: MemoryStore) -> str:
     payload = memory.load()
     owner_name = payload["owner_facts"]["owner_name"]

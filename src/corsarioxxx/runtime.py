@@ -27,5 +27,7 @@ class AssistantRuntime:
             result = self.runner.run(routed.content)
             return result.render(), decision, result
 
-        response = self.llm.generate(routed.content, build_system_prompt(self.memory))
+        from .router import detect_model_context
+        context = detect_model_context(routed.content)
+        response = self.llm.generate(routed.content, build_system_prompt(self.memory), context)
         return response.text, None, None

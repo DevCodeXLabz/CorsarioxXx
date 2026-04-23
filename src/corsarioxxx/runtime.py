@@ -10,6 +10,8 @@ from .tools import CommandRunner, CommandResult
 from .file_ops import FileOperations
 from .git_ops import GitOperations
 from .adb_ops import AdbOperations
+from .session_db import SessionDatabase
+import time
 
 
 @dataclass
@@ -20,6 +22,7 @@ class AssistantRuntime:
     file_ops: FileOperations
     git_ops: GitOperations
     adb_ops: AdbOperations
+    session_db: SessionDatabase
 
     def handle_prompt(self, prompt: str) -> tuple[str, PermissionDecision | None, CommandResult | None]:
         routed = route_prompt(prompt, self.memory)
@@ -38,14 +41,31 @@ class AssistantRuntime:
         if session_summary:
             system_prompt += f"\n\n{session_summary}"
         
+        start_time = time.time()
         response = self.llm.generate(routed.content, system_prompt, context)
+        duration_ms = int((time.time() - start_time) * 1000)
         
         # Save to session history with error handling
         try:
             self.memory.add_session_entry(routed.content, response.text, context)
+            # Log to persistent database
+            self.session_db.log_session_entry(
+                prompt=routed.content,
+                response=response.text[:300],  # Truncate for storage
+                context=context,
+                status="success",
+                duration_ms=duration_ms,
+            )
         except Exception as e:
             # Log error but don't crash
             self.memory.add_session_entry(routed.content, f"[ERROR: {str(e)}]", "error")
+            self.session_db.log_session_entry(
+                prompt=routed.content,
+                response=str(e),
+                context="error",
+                status="error",
+                duration_ms=duration_ms,
+            )
         
         return response.text, None, None
 

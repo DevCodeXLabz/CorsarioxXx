@@ -12,6 +12,8 @@ from .tools import CommandRunner
 from .file_ops import FileOperations
 from .git_ops import GitOperations
 from .adb_ops import AdbOperations
+from .session_db import SessionDatabase
+from .graceful_shutdown import GracefulShutdown, wrap_main_loop
 
 
 @dataclass
@@ -67,26 +69,47 @@ def main() -> int:
 
     from pathlib import Path
     
+    paths = get_paths()
+    session_db = SessionDatabase(paths.data_dir / "sessions.db")
+    graceful = GracefulShutdown(session_db)
+    
     file_ops = FileOperations(Path.cwd())
     git_ops = GitOperations(repo_dir=Path.cwd())
     adb_ops = AdbOperations()
-    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops, git_ops=git_ops, adb_ops=adb_ops)
+    runtime = AssistantRuntime(
+        memory=memory,
+        llm=OllamaClient(),
+        runner=CommandRunner(),
+        file_ops=file_ops,
+        git_ops=git_ops,
+        adb_ops=adb_ops,
+        session_db=session_db
+    )
+
+    # Cleanup old session entries (>30 days)
+    deleted = session_db.cleanup_old_entries(days=30)
+    if deleted > 0:
+        print(f"Limpeza: removidos {deleted} entries antigas.")
 
     print(f"{config.assistant_name} online. Digite /sair para encerrar.")
     print("Comandos disponiveis: /exec, /createfile, /editfile, /readfile, /git, /adb, /sair")
-    while True:
-        prompt = input(f"{config.owner_name}> ").strip()
-        if not prompt:
-            continue
-        if prompt.lower() == "/sair":
-            return 0
+    
+    def session_loop() -> int:
+        while True:
+            prompt = input(f"{config.owner_name}> ").strip()
+            if not prompt:
+                continue
+            if prompt.lower() == "/sair":
+                return 0
 
-        response, decision, _ = runtime.handle_prompt(prompt)
-        print(f"{config.assistant_name}> {response}")
+            response, decision, _ = runtime.handle_prompt(prompt)
+            print(f"{config.assistant_name}> {response}")
 
-        if decision and decision.requires_confirmation:
-            answer = input("Executar mesmo assim? [s/N] ").strip().lower()
-            if answer == "s" and prompt.lower().startswith("/exec "):
-                result = runtime.runner.run(prompt[6:].strip())
-                print(f"{config.assistant_name}> {result.render()}")
+            if decision and decision.requires_confirmation:
+                answer = input("Executar mesmo assim? [s/N] ").strip().lower()
+                if answer == "s" and prompt.lower().startswith("/exec "):
+                    result = runtime.runner.run(prompt[6:].strip())
+                    print(f"{config.assistant_name}> {result.render()}")
+        
+    return wrap_main_loop(session_loop, session_db)
 

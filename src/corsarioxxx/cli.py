@@ -11,6 +11,7 @@ from .runtime import AssistantRuntime
 from .tools import CommandRunner
 from .file_ops import FileOperations
 from .git_ops import GitOperations
+from .adb_ops import AdbOperations
 
 
 @dataclass
@@ -68,10 +69,11 @@ def main() -> int:
     
     file_ops = FileOperations(Path.cwd())
     git_ops = GitOperations(repo_dir=Path.cwd())
-    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops, git_ops=git_ops)
+    adb_ops = AdbOperations()
+    runtime = AssistantRuntime(memory=memory, llm=OllamaClient(), runner=CommandRunner(), file_ops=file_ops, git_ops=git_ops, adb_ops=adb_ops)
 
     print(f"{config.assistant_name} online. Digite /sair para encerrar.")
-    print("Comandos disponiveis: /exec, /createfile, /editfile, /readfile, /git, /sair")
+    print("Comandos disponiveis: /exec, /createfile, /editfile, /readfile, /git, /adb, /sair")
     while True:
         prompt = input(f"{config.owner_name}> ").strip()
         if not prompt:
